@@ -10,8 +10,9 @@ import {
   Copy, 
   Check,
   Monitor,
-  // Fix: Added Zap icon to imports
-  Zap
+  Zap,
+  QrCode,
+  X
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -44,6 +45,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+
+  const BASE_URL = 'https://gosite-theta.vercel.app';
+  const STUDENT_LINK = `${BASE_URL}/#/s/${teacherId}`;
+  const QR_API = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(STUDENT_LINK)}`;
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -52,10 +58,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     })
   );
 
-  // Initial Data Load
   useEffect(() => {
     const loadData = async () => {
-      // Mocking DB load or fetch from Supabase
       const { data, error } = await supabase
         .from('class_sessions')
         .select('*')
@@ -128,8 +132,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   };
 
   const copyStudentLink = () => {
-    const url = `${window.location.origin}/#/s/${teacherId}`;
-    navigator.clipboard.writeText(url);
+    navigator.clipboard.writeText(STUDENT_LINK);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -157,17 +160,26 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         <div className="bg-sky-500 rounded-3xl p-6 text-white mb-8 shadow-xl shadow-sky-200 relative overflow-hidden">
           <div className="relative z-10">
             <h3 className="text-lg font-bold mb-2">학생들에게 이 주소를 알려주세요</h3>
-            <div className="flex items-center gap-3 bg-white/20 p-3 rounded-xl backdrop-blur-sm border border-white/20">
+            <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/20 p-3 rounded-xl backdrop-blur-sm border border-white/20">
               <span className="flex-1 font-mono text-sm overflow-hidden truncate">
-                {window.location.origin}/#/s/{teacherId}
+                {STUDENT_LINK}
               </span>
-              <button 
-                onClick={copyStudentLink}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold"
-              >
-                {copied ? <Check size={18} /> : <Copy size={18} />}
-                {copied ? '복사됨' : '복사'}
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={copyStudentLink}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold"
+                >
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
+                  {copied ? '복사됨' : '복사'}
+                </button>
+                <button 
+                  onClick={() => setShowQr(true)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors flex items-center gap-1 text-sm font-bold"
+                >
+                  <QrCode size={18} />
+                  QR
+                </button>
+              </div>
             </div>
           </div>
           <div className="absolute -right-8 -bottom-8 opacity-20 transform rotate-12">
@@ -220,11 +232,10 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         <div className="relative w-full max-w-[280px] aspect-[9/18.5] bg-slate-900 rounded-[3rem] p-3 shadow-2xl border-[6px] border-slate-800">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/3 h-6 bg-slate-800 rounded-b-xl z-20"></div>
           <div className="w-full h-full bg-white rounded-[2.2rem] overflow-hidden relative">
-            {/* Student Preview Content */}
             <div className="h-full flex flex-col">
               <div className="p-4 bg-white border-b border-slate-100 flex justify-between items-center">
                 <div className="w-6 h-6 bg-sky-500 rounded-lg"></div>
-                <div className="text-[10px] font-bold text-slate-400">ClassLink</div>
+                <div className="text-[10px] font-bold text-slate-400">GoSite</div>
                 <div className="w-6 h-6"></div>
               </div>
               <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
@@ -251,10 +262,36 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
             </div>
           </div>
         </div>
-        <p className="mt-6 text-xs text-slate-400 text-center">
-          * 실제 학생 기기에서는 위와 같이 표시됩니다.
-        </p>
       </aside>
+
+      {/* QR Modal */}
+      {showQr && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-[3rem] p-8 max-w-sm w-full relative animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setShowQr(false)}
+              className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors"
+            >
+              <X size={24} className="text-slate-400" />
+            </button>
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-slate-800 mb-1">수업 QR 코드</h2>
+              <p className="text-slate-500 text-sm mb-6">학생들이 카메라로 스캔하여 접속합니다.</p>
+              
+              <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 mb-6 flex items-center justify-center">
+                <img src={QR_API} alt="QR Code" className="w-full h-auto rounded-lg shadow-sm" />
+              </div>
+              
+              <button 
+                onClick={() => setShowQr(false)}
+                className="w-full py-4 bg-sky-500 text-white rounded-2xl font-bold text-lg"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

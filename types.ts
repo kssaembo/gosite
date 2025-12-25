@@ -8,6 +8,8 @@ export interface Slot {
 export interface TeacherData {
   id: string;
   username: string;
+  password?: string;
+  recovery_code?: string;
   active_slot_id: string | null;
   slots: Slot[];
   updated_at: string;

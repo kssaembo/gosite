@@ -11,7 +11,7 @@ const LandingPage: React.FC = () => {
           <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center text-white">
             <LinkIcon size={24} />
           </div>
-          <span className="text-2xl font-bold text-slate-800 tracking-tight">ClassLink</span>
+          <span className="text-2xl font-bold text-slate-800 tracking-tight">GoSite</span>
         </div>
         <Link to="/login" className="px-6 py-2 bg-sky-500 text-white rounded-full font-semibold hover:bg-sky-600 transition-colors">
           선생님 로그인
@@ -48,7 +48,7 @@ const LandingPage: React.FC = () => {
 
       <footer className="bg-slate-50 py-12 border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-6 text-center text-slate-500">
-          © 2024 ClassLink. 초등 교사를 위한 실시간 수업 지원 서비스.
+          © 2024 GoSite. 초등 교사를 위한 실시간 수업 지원 서비스.
         </div>
       </footer>
     </div>

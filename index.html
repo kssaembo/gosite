@@ -4,7 +4,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>ClassLink - 실시간 수업 랜딩 페이지</title>
+    <title>GoSite - 실시간 수업 랜딩 페이지</title>
     <meta name="theme-color" content="#0ea5e9" />
     <meta name="description" content="실시간으로 변하는 선생님의 수업 페이지" />
     
@@ -12,8 +12,8 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="ClassLink" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-title" content="GoSite" />
+    <link rel="apple-touch-icon" href="https://picsum.photos/192/192?random=1" />
     
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -27,6 +27,14 @@
       }
       .drag-handle:active {
         cursor: grabbing;
+      }
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+      }
+      .animate-shake {
+        animation: shake 0.2s ease-in-out 0s 2;
       }
     </style>
   <script type="importmap">
