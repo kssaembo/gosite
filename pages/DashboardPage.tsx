@@ -15,7 +15,8 @@ import {
   X,
   Mail,
   AlertCircle,
-  Save
+  Save,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -52,6 +53,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showQr, setShowQr] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [showToast, setShowToast] = useState(false);
 
   const BASE_URL = 'https://gosite-theta.vercel.app';
   const STUDENT_LINK = `${BASE_URL}/#/s/${teacherId}`;
@@ -81,7 +83,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
           setSlots(data.slots || []);
           setActiveSlotId(data.active_slot_id);
         } else {
-          // 데이터가 없는 경우는 LoginPage에서 생성되므로 이론상 발생하지 않음
           const initialSlots = [{ id: Date.now().toString(), title: '', url: '' }];
           setSlots(initialSlots);
         }
@@ -94,21 +95,32 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     loadData();
   }, [teacherId]);
 
-  // 저장 핵심 로직 (upsert -> update로 변경)
-  const saveToSupabase = useCallback(async (targetSlots: Slot[], targetActiveId: string | null) => {
-    if (isInitialLoading || !teacherId) return;
+  // 수동 저장 함수
+  const handleManualSave = async () => {
+    if (!teacherId) return;
 
     setIsSaving(true);
     setSaveError(null);
 
+    // URL 자동 완성 로직: https:// 가 없으면 자동으로 붙여줌
+    const formattedSlots = slots.map(slot => {
+      let url = slot.url.trim();
+      if (url && !/^https?:\/\//i.test(url)) {
+        url = `https://${url}`;
+      }
+      return { ...slot, url };
+    });
+
+    // 화면의 입력 필드에도 반영되도록 상태 업데이트
+    setSlots(formattedSlots);
+
     const updateData = {
-      slots: targetSlots,
-      active_slot_id: targetActiveId,
+      slots: formattedSlots,
+      active_slot_id: activeSlotId,
       updated_at: new Date().toISOString()
     };
 
     try {
-      // update를 사용하여 기존 행의 특정 컬럼만 수정 (비밀번호 누락 문제 해결)
       const { error } = await supabase
         .from('class_sessions')
         .update(updateData)
@@ -119,7 +131,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         setSaveError(error.message);
       } else {
         setLastSavedAt(new Date());
-        console.log("서버 저장 성공:", updateData);
+        // 토스트 표시
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
       }
     } catch (err) {
       console.error("네트워크 에러:", err);
@@ -127,18 +141,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     } finally {
       setIsSaving(false);
     }
-  }, [teacherId, isInitialLoading]);
-
-  // 자동 저장 기능: slots나 activeSlotId가 변하면 1초 뒤 자동 저장 (디바운스)
-  useEffect(() => {
-    if (isInitialLoading) return;
-
-    const timer = setTimeout(() => {
-      saveToSupabase(slots, activeSlotId);
-    }, 1000); 
-
-    return () => clearTimeout(timer);
-  }, [slots, activeSlotId, saveToSupabase, isInitialLoading]);
+  };
 
   const addSlot = () => {
     if (slots.length >= 10) return;
@@ -249,13 +252,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         <div className="space-y-4 flex-1">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-bold text-slate-800">수업 링크 슬롯 ({slots.length}/10)</h2>
-            <button 
-              onClick={addSlot}
-              disabled={slots.length >= 10}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-sky-500 border border-sky-100 rounded-xl font-bold shadow-sm hover:bg-sky-50 transition-all disabled:opacity-50"
-            >
-              <Plus size={18} /> 추가
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleManualSave}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-xl font-bold shadow-lg shadow-sky-100 hover:bg-sky-600 transition-all disabled:opacity-50"
+              >
+                <Save size={18} /> 저장하기
+              </button>
+              <button 
+                onClick={addSlot}
+                disabled={slots.length >= 10}
+                className="flex items-center gap-2 px-4 py-2 bg-white text-sky-500 border border-sky-100 rounded-xl font-bold shadow-sm hover:bg-sky-50 transition-all disabled:opacity-50"
+              >
+                <Plus size={18} /> 추가
+              </button>
+            </div>
           </div>
 
           {slots.length === 0 ? (
@@ -285,10 +297,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         </div>
 
         <footer className="mt-12 py-8 border-t border-slate-200 text-center">
+          <div className="mb-8 p-4 bg-red-50 rounded-2xl border border-red-100">
+            <p className="text-red-600 text-[11px] font-bold leading-relaxed break-keep">
+              ※ 주의: 실시간 전송 특성상 '방송중(보내기)' 상태에서 '저장하기'를 누르면 학생 기기에 즉시 반영되며 전송된 링크는 취소가 불가합니다. 
+              잘못된 링크 전송으로 인한 책임은 사용자에게 있으므로 전송 전 주소를 반드시 확인하시기 바랍니다.
+            </p>
+          </div>
           <div className="flex flex-col items-center gap-2 mb-4">
             <p className="text-slate-600 text-[11px] font-medium leading-relaxed">
-              입력한 내용은 서버에 자동으로 저장되며,<br/>
-              로그아웃 하거나 브라우저를 닫아도 그대로 유지됩니다.
+              입력한 내용은 '저장하기' 버튼을 눌러야 서버에 기록되며,<br/>
+              네트워크가 불안정할 경우 저장이 되지 않을 수 있으니 완료 메시지를 꼭 확인하세요.
             </p>
             <a href="mailto:sinjoppo@naver.com" className="text-sky-500 text-sm font-bold flex items-center gap-1 hover:underline mt-2">
               <Mail size={14} /> Contact: sinjoppo@naver.com
@@ -339,6 +357,16 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
           </div>
         </div>
       </aside>
+
+      {/* 저장 완료 토스트 팝업 - index.html에 정의된 animate-toast 사용 */}
+      {showToast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-toast">
+          <div className="bg-sky-500 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold">
+            <CheckCircle2 size={18} />
+            수업 링크가 저장되었습니다.
+          </div>
+        </div>
+      )}
 
       {showQr && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">

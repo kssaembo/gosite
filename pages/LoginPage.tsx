@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { LogIn, Link as LinkIcon, AlertCircle, Key, RefreshCcw, CheckCircle2, Copy, X } from 'lucide-react';
+import { LogIn, Link as LinkIcon, AlertCircle, Key, RefreshCcw, CheckCircle2, Copy, X, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -21,6 +21,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // SHA-256 해시 생성 함수
+  const hashPassword = async (pwd: string) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(pwd);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  };
 
   // 복구 코드 생성 함수 (10자리)
   const generateRecoveryCode = () => {
@@ -47,21 +56,26 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       if (mode === 'login') {
         if (!existingUser) {
           setError('등록되지 않은 ID입니다. "처음 시작하기"를 이용해 주세요.');
-        } else if (existingUser.password !== password) {
-          setError('비밀번호가 일치하지 않습니다.');
         } else {
-          onLogin(existingUser.teacher_id, existingUser.username || existingUser.teacher_id);
+          const hashedPassword = await hashPassword(password);
+          // 해시값 비교 (하위 호환성 없음: 신규 등록이나 재설정 권장)
+          if (existingUser.password !== hashedPassword) {
+            setError('비밀번호가 일치하지 않습니다.');
+          } else {
+            onLogin(existingUser.teacher_id, existingUser.username || existingUser.teacher_id);
+          }
         }
       } else if (mode === 'register') {
         if (existingUser) {
           setError('ID가 중복됩니다. 다른 ID를 입력해 주세요.');
         } else {
           const newRecoveryCode = generateRecoveryCode();
+          const hashedPassword = await hashPassword(password);
           const { error: insertError } = await supabase
             .from('class_sessions')
             .insert({
               teacher_id: teacherId,
-              password: password,
+              password: hashedPassword,
               username: teacherId,
               recovery_code: newRecoveryCode,
               slots: [],
@@ -77,9 +91,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         } else if (existingUser.recovery_code !== recoveryCode) {
           setError('복구 코드가 일치하지 않습니다.');
         } else {
+          const hashedNewPassword = await hashPassword(newPassword);
           const { error: updateError } = await supabase
             .from('class_sessions')
-            .update({ password: newPassword })
+            .update({ password: hashedNewPassword })
             .eq('teacher_id', teacherId);
 
           if (updateError) throw updateError;
@@ -231,12 +246,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               </button>
             )}
             {mode === 'reset' && (
-              <button 
-                onClick={() => { setMode('login'); resetForm(); }}
-                className="text-sm text-slate-400 hover:text-sky-500 font-medium transition-colors flex items-center gap-1"
-              >
-                로그인으로 돌아가기
-              </button>
+              <div className="flex flex-col items-center gap-4">
+                <button 
+                  onClick={() => { setMode('login'); resetForm(); }}
+                  className="text-sm text-slate-400 hover:text-sky-500 font-medium transition-colors flex items-center gap-1"
+                >
+                  로그인으로 돌아가기
+                </button>
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-[11px] text-slate-400 font-bold leading-relaxed text-center">
+                  복구 코드를 분실하셨을 경우 하단의 이메일로<br/>
+                  비밀번호 재설정 요청을 해주세요.
+                  <a href="mailto:sinjoppo@naver.com" className="flex items-center justify-center gap-1 text-sky-500 mt-1 hover:underline">
+                    <Mail size={12} /> sinjoppo@naver.com
+                  </a>
+                </div>
+              </div>
             )}
           </div>
         </div>
