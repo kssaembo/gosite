@@ -194,7 +194,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900">{username} 선생님의 교실</h1>
             <div className="text-slate-500 mt-1 flex items-center gap-3">
-              수업 도구 관리 및 실시간 전송
+              실시간 URL 전송
               {isSaving ? (
                 <span className="text-[10px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded animate-pulse font-bold flex items-center gap-1">
                   <Save size={10} /> 서버 저장 중...
@@ -220,7 +220,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
           <div className="relative z-10">
             <h3 className="text-lg font-bold mb-2">학생들에게 이 주소를 알려주세요</h3>
             <div className="flex flex-col sm:flex-row items-center gap-3 bg-white/20 p-3 rounded-xl backdrop-blur-sm border border-white/20">
-              <span className="flex-1 font-mono text-sm overflow-hidden truncate">
+              <span className="flex-1 font-mono text-sm break-all leading-tight">
                 {STUDENT_LINK}
               </span>
               <div className="flex gap-2">
@@ -300,7 +300,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         </footer>
       </div>
 
-      <aside className="w-full lg:w-96 bg-slate-100 border-l border-slate-200 p-8 flex flex-col items-center">
+      <aside className="hidden lg:flex w-full lg:w-96 bg-slate-100 border-l border-slate-200 p-8 flex-col items-center">
         <div className="flex items-center gap-2 mb-6 text-slate-500 font-bold uppercase tracking-wider text-sm">
           <Monitor size={16} /> 학생 화면 미리보기
         </div>
