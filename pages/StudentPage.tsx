@@ -70,27 +70,26 @@ const StudentPage: React.FC = () => {
     // 1. 초기 로드
     fetchSession();
 
-    // 2. 실시간 채널 구독 (전략: 모든 변경사항 감시)
+    // 2. 실시간 채널 구독
     const channel = supabase
-      .channel(`class_updates_${teacherId}`)
+      .channel(`student_realtime_${teacherId}`)
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
         table: 'class_sessions',
         filter: `teacher_id=eq.${teacherId}`
       }, (payload) => {
-        console.log('실시간 신호 감지됨:', payload);
-        // 실시간 신호가 오면 즉시 다시 페칭하여 최신 상태 확보
+        console.log('실시간 업데이트 수신:', payload);
+        // 데이터 누락 방지를 위해 신호가 오면 무조건 전체 재조회
         fetchSession();
       })
       .subscribe((status) => {
-        console.log(`구독 상태: ${status}`);
-        if (status === 'SUBSCRIBED') {
-          console.log("실시간 연결이 성공적으로 수립되었습니다.");
+        if (status === 'CHANNEL_ERROR') {
+          console.error("실시간 연결 오류가 발생했습니다.");
         }
       });
 
-    // 3. 폴링(Polling) - 5초마다 데이터 강제 확인 (실시간 연결이 끊길 경우의 보험)
+    // 3. 보험용 폴링 (5초)
     const pollInterval = setInterval(() => {
       fetchSession();
     }, 5000);

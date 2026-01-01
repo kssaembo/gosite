@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -13,7 +13,9 @@ import {
   Zap,
   QrCode,
   X,
-  Mail
+  Mail,
+  AlertCircle,
+  Save
 } from 'lucide-react';
 import { 
   DndContext, 
@@ -46,11 +48,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showQr, setShowQr] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
-  // 학생 접속 주소: 요청하신 도메인 패턴으로 고정
-  const STUDENT_LINK = `https://gosite-theta.vercel.app//#/s/${teacherId}`;
+  const BASE_URL = 'https://gosite-theta.vercel.app';
+  const STUDENT_LINK = `${BASE_URL}/#/s/${teacherId}`;
   const QR_API = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(STUDENT_LINK)}`;
 
   const sensors = useSensors(
@@ -69,97 +73,90 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
           .from('class_sessions')
           .select('*')
           .eq('teacher_id', teacherId)
-          .single();
+          .maybeSingle();
         
+        if (error) throw error;
+
         if (data) {
           setSlots(data.slots || []);
           setActiveSlotId(data.active_slot_id);
         } else {
+          // 데이터가 없는 경우는 LoginPage에서 생성되므로 이론상 발생하지 않음
           const initialSlots = [{ id: Date.now().toString(), title: '', url: '' }];
           setSlots(initialSlots);
-          // 데이터가 없으면 새로 생성
-          await supabase.from('class_sessions').insert({
-            teacher_id: teacherId,
-            username,
-            slots: initialSlots,
-            active_slot_id: null
-          });
         }
       } catch (err) {
-        console.error("초기 로딩 오류:", err);
+        console.error("데이터 로드 실패:", err);
       } finally {
         setIsInitialLoading(false);
       }
     };
     loadData();
-  }, [teacherId, username]);
+  }, [teacherId]);
 
-  // Supabase 저장 함수 (연결 문제 해결을 위해 upsert 대신 명시적 처리 고려)
-  const saveToSupabase = useCallback(async (newSlots: Slot[], activeId: string | null) => {
+  // 저장 핵심 로직 (upsert -> update로 변경)
+  const saveToSupabase = useCallback(async (targetSlots: Slot[], targetActiveId: string | null) => {
     if (isInitialLoading || !teacherId) return;
 
     setIsSaving(true);
+    setSaveError(null);
+
+    const updateData = {
+      slots: targetSlots,
+      active_slot_id: targetActiveId,
+      updated_at: new Date().toISOString()
+    };
+
     try {
-      // upsert를 사용하되, 에러 발생 시 상세 원인 파악을 위해 로깅 강화
-      const { data, error } = await supabase
+      // update를 사용하여 기존 행의 특정 컬럼만 수정 (비밀번호 누락 문제 해결)
+      const { error } = await supabase
         .from('class_sessions')
-        .upsert({
-          teacher_id: teacherId,
-          username,
-          slots: newSlots,
-          active_slot_id: activeId,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'teacher_id' })
-        .select();
+        .update(updateData)
+        .eq('teacher_id', teacherId);
 
       if (error) {
-        console.error("전송 실패 상세 원인:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        
-        if (error.message.includes("paused") || error.code === "PGRST301") {
-          alert("서버 연결이 원활하지 않습니다. Supabase 프로젝트 상태를 다시 한번 확인해주세요.");
-        }
+        console.error("저장 실패 에러:", error);
+        setSaveError(error.message);
       } else {
-        console.log("데이터 전송 성공:", data);
+        setLastSavedAt(new Date());
+        console.log("서버 저장 성공:", updateData);
       }
     } catch (err) {
-      console.error("예외 발생:", err);
+      console.error("네트워크 에러:", err);
+      setSaveError("인터넷 연결을 확인하세요.");
     } finally {
       setIsSaving(false);
     }
-  }, [teacherId, username, isInitialLoading]);
+  }, [teacherId, isInitialLoading]);
+
+  // 자동 저장 기능: slots나 activeSlotId가 변하면 1초 뒤 자동 저장 (디바운스)
+  useEffect(() => {
+    if (isInitialLoading) return;
+
+    const timer = setTimeout(() => {
+      saveToSupabase(slots, activeSlotId);
+    }, 1000); 
+
+    return () => clearTimeout(timer);
+  }, [slots, activeSlotId, saveToSupabase, isInitialLoading]);
 
   const addSlot = () => {
     if (slots.length >= 10) return;
     const newSlot: Slot = { id: Date.now().toString(), title: '', url: '' };
-    const updated = [...slots, newSlot];
-    setSlots(updated);
-    saveToSupabase(updated, activeSlotId);
+    setSlots(prev => [...prev, newSlot]);
   };
 
   const removeSlot = (id: string) => {
-    const updated = slots.filter(s => s.id !== id);
-    let newActiveId = activeSlotId;
-    if (activeSlotId === id) newActiveId = null;
-    setSlots(updated);
-    setActiveSlotId(newActiveId);
-    saveToSupabase(updated, newActiveId);
+    setSlots(prev => prev.filter(s => s.id !== id));
+    if (activeSlotId === id) setActiveSlotId(null);
   };
 
   const updateSlot = (id: string, key: 'title' | 'url', value: string) => {
-    const updated = slots.map(s => s.id === id ? { ...s, [key]: value } : s);
-    setSlots(updated);
+    setSlots(prev => prev.map(s => s.id === id ? { ...s, [key]: value } : s));
   };
 
   const toggleActive = (id: string) => {
-    const newActiveId = activeSlotId === id ? null : id;
-    setActiveSlotId(newActiveId);
-    // 상태 변경 즉시 DB에 전송
-    saveToSupabase(slots, newActiveId);
+    setActiveSlotId(prev => (prev === id ? null : id));
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -167,9 +164,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     if (over && active.id !== over.id) {
       const oldIndex = slots.findIndex((i) => i.id === active.id);
       const newIndex = slots.findIndex((i) => i.id === over.id);
-      const updated = arrayMove(slots, oldIndex, newIndex);
-      setSlots(updated);
-      saveToSupabase(updated, activeSlotId);
+      setSlots((items) => arrayMove(items, oldIndex, newIndex));
     }
   };
 
@@ -198,9 +193,22 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         <header className="flex justify-between items-start mb-10">
           <div>
             <h1 className="text-3xl font-extrabold text-slate-900">{username} 선생님의 교실</h1>
-            <div className="text-slate-500 mt-1 flex items-center gap-2">
+            <div className="text-slate-500 mt-1 flex items-center gap-3">
               수업 도구 관리 및 실시간 전송
-              {isSaving && <span className="text-[10px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded animate-pulse font-bold">서버 동기화 중...</span>}
+              {isSaving ? (
+                <span className="text-[10px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded animate-pulse font-bold flex items-center gap-1">
+                  <Save size={10} /> 서버 저장 중...
+                </span>
+              ) : lastSavedAt ? (
+                <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-bold">
+                  최근 저장: {lastSavedAt.toLocaleTimeString()}
+                </span>
+              ) : null}
+              {saveError && (
+                <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded font-bold flex items-center gap-1 animate-shake">
+                  <AlertCircle size={10}/> 저장 실패: {saveError}
+                </span>
+              )}
             </div>
           </div>
           <button onClick={onLogout} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
@@ -269,7 +277,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
                     onRemove={() => removeSlot(slot.id)}
                     onUpdate={updateSlot}
                     onToggleActive={() => toggleActive(slot.id)}
-                    onBlur={() => saveToSupabase(slots, activeSlotId)}
                   />
                 ))}
               </SortableContext>
@@ -277,11 +284,13 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
           )}
         </div>
 
-        {/* Footer */}
         <footer className="mt-12 py-8 border-t border-slate-200 text-center">
           <div className="flex flex-col items-center gap-2 mb-4">
-            <p className="text-slate-500 text-xs font-medium">제안이나 문의사항이 있으시면 언제든 메일 주세요.</p>
-            <a href="mailto:sinjoppo@naver.com" className="text-sky-500 text-sm font-bold flex items-center gap-1 hover:underline">
+            <p className="text-slate-600 text-[11px] font-medium leading-relaxed">
+              입력한 내용은 서버에 자동으로 저장되며,<br/>
+              로그아웃 하거나 브라우저를 닫아도 그대로 유지됩니다.
+            </p>
+            <a href="mailto:sinjoppo@naver.com" className="text-sky-500 text-sm font-bold flex items-center gap-1 hover:underline mt-2">
               <Mail size={14} /> Contact: sinjoppo@naver.com
             </a>
           </div>
@@ -368,8 +377,7 @@ const SortableSlotItem: React.FC<{
   onRemove: () => void;
   onUpdate: (id: string, key: 'title' | 'url', value: string) => void;
   onToggleActive: () => void;
-  onBlur: () => void;
-}> = ({ slot, isActive, onRemove, onUpdate, onToggleActive, onBlur }) => {
+}> = ({ slot, isActive, onRemove, onUpdate, onToggleActive }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: slot.id });
   
   const style = {
@@ -394,7 +402,6 @@ const SortableSlotItem: React.FC<{
           className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm outline-none focus:border-sky-300 transition-colors"
           value={slot.title}
           onChange={(e) => onUpdate(slot.id, 'title', e.target.value)}
-          onBlur={onBlur}
         />
         <input 
           type="url" 
@@ -402,7 +409,6 @@ const SortableSlotItem: React.FC<{
           className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-lg text-sm outline-none focus:border-sky-300 transition-colors"
           value={slot.url}
           onChange={(e) => onUpdate(slot.id, 'url', e.target.value)}
-          onBlur={onBlur}
         />
       </div>
 
