@@ -1,9 +1,32 @@
 
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Link as LinkIcon, Users, Zap, Layout, Mail } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // 1. 교사 로그인 여부 확인
+    const authSaved = localStorage.getItem('classlink_auth');
+    if (authSaved) {
+      const auth = JSON.parse(authSaved);
+      if (auth.isLoggedIn) {
+        navigate('/dashboard');
+        return;
+      }
+    }
+
+    // 2. PWA 모드 및 학생 접속 기록 확인
+    const isPWA = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    const lastStudentId = localStorage.getItem('last_student_teacher_id');
+    
+    // 설치된 앱으로 실행되었고, 마지막으로 접속한 학생 페이지 기록이 있다면 해당 페이지로 이동
+    if (isPWA && lastStudentId) {
+      navigate(`/s/${lastStudentId}`);
+    }
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-white">
       <nav className="p-6 flex justify-between items-center max-w-7xl mx-auto">

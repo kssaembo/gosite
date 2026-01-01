@@ -67,6 +67,9 @@ const StudentPage: React.FC = () => {
   useEffect(() => {
     if (!teacherId) return;
 
+    // 학생이 접속한 마지막 선생님 ID 저장 (PWA 접속 시 활용)
+    localStorage.setItem('last_student_teacher_id', teacherId);
+
     // 1. 초기 로드
     fetchSession();
 
