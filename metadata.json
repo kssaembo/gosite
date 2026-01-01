@@ -1,9 +1,5 @@
-
 {
   "name": "GoSite - 실시간 수업 랜딩 페이지",
   "description": "교사가 안내하는 웹사이트로 학생들이 즉시 이동할 수 있는 실시간 수업 도구입니다.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
+  "requestFramePermissions": []
 }

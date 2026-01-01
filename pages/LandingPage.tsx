@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Link as LinkIcon, Users, Zap, Layout } from 'lucide-react';
+import { Link as LinkIcon, Users, Zap, Layout, Mail } from 'lucide-react';
 
 const LandingPage: React.FC = () => {
   return (
@@ -46,9 +46,21 @@ const LandingPage: React.FC = () => {
         </div>
       </main>
 
-      <footer className="bg-slate-50 py-12 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-6 text-center text-slate-500">
-          © 2024 GoSite. 초등 교사를 위한 실시간 수업 지원 서비스.
+      <footer className="bg-slate-50 py-16 border-t border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <div className="mb-6 flex flex-col items-center gap-2">
+            <p className="text-slate-600 font-medium">제안이나 문의사항이 있으시면 언제든 메일 주세요.</p>
+            <a 
+              href="mailto:sinjoppo@naver.com" 
+              className="inline-flex items-center gap-2 text-sky-500 hover:text-sky-600 font-bold transition-colors group"
+            >
+              <Mail size={18} className="group-hover:scale-110 transition-transform" />
+              Contact: sinjoppo@naver.com
+            </a>
+          </div>
+          <div className="text-slate-400 text-sm font-bold">
+            ⓒ 2025. Kwon's class. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>
