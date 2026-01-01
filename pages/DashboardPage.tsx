@@ -64,48 +64,73 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   useEffect(() => {
     const loadData = async () => {
       setIsInitialLoading(true);
-      const { data, error } = await supabase
-        .from('class_sessions')
-        .select('*')
-        .eq('teacher_id', teacherId)
-        .single();
-      
-      if (data) {
-        setSlots(data.slots || []);
-        setActiveSlotId(data.active_slot_id);
-      } else {
-        const initialSlots = [{ id: Date.now().toString(), title: '', url: '' }];
-        setSlots(initialSlots);
-        // 초기 데이터가 없는 경우 생성 (upsert)
-        await supabase.from('class_sessions').upsert({
-          teacher_id: teacherId,
-          username,
-          slots: initialSlots,
-          active_slot_id: null
-        }, { onConflict: 'teacher_id' });
+      try {
+        const { data, error } = await supabase
+          .from('class_sessions')
+          .select('*')
+          .eq('teacher_id', teacherId)
+          .single();
+        
+        if (data) {
+          setSlots(data.slots || []);
+          setActiveSlotId(data.active_slot_id);
+        } else {
+          const initialSlots = [{ id: Date.now().toString(), title: '', url: '' }];
+          setSlots(initialSlots);
+          // 데이터가 없으면 새로 생성
+          await supabase.from('class_sessions').insert({
+            teacher_id: teacherId,
+            username,
+            slots: initialSlots,
+            active_slot_id: null
+          });
+        }
+      } catch (err) {
+        console.error("초기 로딩 오류:", err);
+      } finally {
+        setIsInitialLoading(false);
       }
-      setIsInitialLoading(false);
     };
     loadData();
   }, [teacherId, username]);
 
-  // Supabase 저장 함수 (안정성 강화)
+  // Supabase 저장 함수 (연결 문제 해결을 위해 upsert 대신 명시적 처리 고려)
   const saveToSupabase = useCallback(async (newSlots: Slot[], activeId: string | null) => {
-    if (isInitialLoading) return;
+    if (isInitialLoading || !teacherId) return;
 
     setIsSaving(true);
-    const { error } = await supabase
-      .from('class_sessions')
-      .upsert({
-        teacher_id: teacherId,
-        username,
-        slots: newSlots,
-        active_slot_id: activeId,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'teacher_id' });
+    try {
+      // upsert를 사용하되, 에러 발생 시 상세 원인 파악을 위해 로깅 강화
+      const { data, error } = await supabase
+        .from('class_sessions')
+        .upsert({
+          teacher_id: teacherId,
+          username,
+          slots: newSlots,
+          active_slot_id: activeId,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'teacher_id' })
+        .select();
 
-    if (error) console.error("서버 데이터 저장 오류:", error);
-    setIsSaving(false);
+      if (error) {
+        console.error("전송 실패 상세 원인:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        if (error.message.includes("paused") || error.code === "PGRST301") {
+          alert("서버 연결이 원활하지 않습니다. Supabase 프로젝트 상태를 다시 한번 확인해주세요.");
+        }
+      } else {
+        console.log("데이터 전송 성공:", data);
+      }
+    } catch (err) {
+      console.error("예외 발생:", err);
+    } finally {
+      setIsSaving(false);
+    }
   }, [teacherId, username, isInitialLoading]);
 
   const addSlot = () => {
@@ -133,6 +158,7 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   const toggleActive = (id: string) => {
     const newActiveId = activeSlotId === id ? null : id;
     setActiveSlotId(newActiveId);
+    // 상태 변경 즉시 DB에 전송
     saveToSupabase(slots, newActiveId);
   };
 

@@ -33,11 +33,11 @@ const StudentPage: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  // 공통 데이터 페칭 함수
+  const fetchSession = async () => {
     if (!teacherId) return;
-
-    const fetchSession = async () => {
-      const { data: session } = await supabase
+    try {
+      const { data: session, error } = await supabase
         .from('class_sessions')
         .select('*')
         .eq('teacher_id', teacherId)
@@ -45,48 +45,61 @@ const StudentPage: React.FC = () => {
       
       if (session) {
         setData(session);
-        if (session.active_slot_id) {
-          lastRedirectedSlotId.current = session.active_slot_id;
-        }
-      }
-      setLoading(false);
-    };
-
-    fetchSession();
-
-    // 실시간 채널 구독 (안정성 강화)
-    const channel = supabase
-      .channel(`realtime:class_sessions:${teacherId}`)
-      .on('postgres_changes', { 
-        event: 'UPDATE', 
-        schema: 'public', 
-        table: 'class_sessions',
-        filter: `teacher_id=eq.${teacherId}`
-      }, (payload) => {
-        const newData = payload.new as TeacherData;
-        
-        // payload.new에 전체 정보가 없을 경우를 대비해 기존 데이터와 병합
-        setData(prev => prev ? { ...prev, ...newData } : newData);
-
-        if (newData.active_slot_id && newData.active_slot_id !== lastRedirectedSlotId.current) {
-          // 최신 슬롯 리스트 확보 (가끔 payload에 slots가 누락될 수 있음)
-          const slotsToSearch = newData.slots || data?.slots || [];
-          const activeSlot = slotsToSearch.find(s => s.id === newData.active_slot_id);
-          
+        // 새로운 활성 슬롯이 발견되면 리다이렉션 처리
+        if (session.active_slot_id && session.active_slot_id !== lastRedirectedSlotId.current) {
+          const activeSlot = session.slots.find((s: any) => s.id === session.active_slot_id);
           if (activeSlot && activeSlot.url) {
-            lastRedirectedSlotId.current = newData.active_slot_id;
+            lastRedirectedSlotId.current = session.active_slot_id;
+            console.log("새 수업 링크 감지됨. 이동 중:", activeSlot.url);
             setTimeout(() => {
               window.location.href = activeSlot.url;
             }, 500);
           }
         }
+      }
+    } catch (err) {
+      console.error("데이터 로드 오류:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!teacherId) return;
+
+    // 1. 초기 로드
+    fetchSession();
+
+    // 2. 실시간 채널 구독 (전략: 모든 변경사항 감시)
+    const channel = supabase
+      .channel(`class_updates_${teacherId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'class_sessions',
+        filter: `teacher_id=eq.${teacherId}`
+      }, (payload) => {
+        console.log('실시간 신호 감지됨:', payload);
+        // 실시간 신호가 오면 즉시 다시 페칭하여 최신 상태 확보
+        fetchSession();
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`구독 상태: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          console.log("실시간 연결이 성공적으로 수립되었습니다.");
+        }
+      });
+
+    // 3. 폴링(Polling) - 5초마다 데이터 강제 확인 (실시간 연결이 끊길 경우의 보험)
+    const pollInterval = setInterval(() => {
+      fetchSession();
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(pollInterval);
     };
-  }, [teacherId, data?.slots]);
+  }, [teacherId]);
 
   if (loading) {
     return (
