@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { LogIn, Link as LinkIcon, AlertCircle, Key, RefreshCcw, CheckCircle2, Copy, X, Mail } from 'lucide-react';
+import { LogIn, Link as LinkIcon, AlertCircle, Key, RefreshCcw, CheckCircle2, Copy, X, Mail, ShieldAlert, CheckSquare, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -17,6 +17,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [newPassword, setNewPassword] = useState('');
   const [recoveryCode, setRecoveryCode] = useState('');
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
+  const [isCodeConfirmed, setIsCodeConfirmed] = useState(false);
   
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -268,37 +269,72 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
       {/* Recovery Code Modal */}
       {generatedCode && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full relative animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-md w-full my-auto relative animate-in zoom-in-95 duration-200 shadow-2xl">
             <div className="text-center">
-              <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-emerald-100 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-emerald-50">
                 <Key size={32} />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">복구 코드 발급</h2>
+              <h2 className="text-2xl font-black text-slate-800 mb-2">복구 코드 발급 완료</h2>
               <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-                비밀번호 분실 시 꼭 필요한 코드입니다.<br/>
-                <span className="font-bold text-red-500">캡쳐하거나 메모하여 따로 보관하세요!</span>
+                아이디/비밀번호 분실 시 <span className="text-emerald-500 font-bold underline">유일한 복구 수단</span>입니다.
               </p>
               
-              <div className="bg-slate-50 p-4 rounded-2xl border-2 border-dashed border-slate-200 mb-6 group relative">
-                <span className="text-2xl font-mono font-black text-slate-800 tracking-wider">
+              <div className="bg-slate-900 p-6 rounded-[2rem] mb-6 group relative shadow-inner overflow-hidden">
+                <div className="absolute top-0 right-0 p-3 opacity-10 text-white pointer-events-none">
+                  <ShieldAlert size={60} />
+                </div>
+                <span className="text-3xl font-mono font-black text-white tracking-[0.2em] relative z-10">
                   {generatedCode}
                 </span>
                 <button 
                   onClick={() => {
                     navigator.clipboard.writeText(generatedCode);
-                    alert('복구 코드가 복사되었습니다.');
+                    alert('복구 코드가 클립보드에 복사되었습니다.');
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-sky-500 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 text-slate-400 hover:text-white transition-colors z-20"
+                  title="복사하기"
                 >
-                  <Copy size={18} />
+                  <Copy size={20} />
                 </button>
               </div>
+
+              {/* 주의사항 섹션 */}
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-5 mb-6 text-left space-y-3">
+                <div className="flex items-center gap-2 text-red-600 font-black text-sm">
+                  <ShieldAlert size={18} />
+                  보안 주의사항
+                </div>
+                <ul className="text-[11px] text-red-700 font-bold leading-relaxed space-y-1.5 list-disc pl-4">
+                  <li>복구 코드는 분실 시 <span className="underline italic text-red-800">절대 재발급이 불가능</span>합니다.</li>
+                  <li>메모장이나 사진첩 등 본인만 아는 안전한 곳에 보관하세요.</li>
+                  <li>타인에게 공유할 경우 계정 보안이 위협받을 수 있습니다.</li>
+                </ul>
+              </div>
+
+              {/* 체크박스 확인 */}
+              <label 
+                className={`flex items-start gap-3 p-4 rounded-xl transition-all cursor-pointer mb-6 border-2 ${isCodeConfirmed ? 'bg-sky-50 border-sky-200 ring-2 ring-sky-100' : 'bg-slate-50 border-slate-100'}`}
+                onClick={() => setIsCodeConfirmed(!isCodeConfirmed)}
+              >
+                <div className={`mt-0.5 transition-colors ${isCodeConfirmed ? 'text-sky-500' : 'text-slate-300'}`}>
+                  {isCodeConfirmed ? <CheckSquare size={20} fill="currentColor" className="text-sky-500" /> : <Square size={20} />}
+                </div>
+                <span className={`text-[12px] font-bold text-left leading-tight ${isCodeConfirmed ? 'text-sky-700' : 'text-slate-500'}`}>
+                  위 주의사항을 모두 읽었으며, 복구 코드를 안전하게 보관했음을 확인합니다.
+                </span>
+              </label>
               
               <button 
-                onClick={() => onLogin(teacherId, teacherId)}
-                className="w-full py-4 bg-sky-500 text-white rounded-2xl font-bold text-lg hover:bg-sky-600 transition-colors"
+                onClick={() => isCodeConfirmed && onLogin(teacherId, teacherId)}
+                disabled={!isCodeConfirmed}
+                className={`w-full py-5 rounded-[1.5rem] font-black text-lg transition-all shadow-xl flex items-center justify-center gap-2 ${
+                  isCodeConfirmed 
+                  ? 'bg-sky-500 text-white hover:bg-sky-600 shadow-sky-100 active:scale-95' 
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed grayscale'
+                }`}
               >
+                {isCodeConfirmed ? <CheckCircle2 size={20} /> : null}
                 코드를 저장했습니다
               </button>
             </div>

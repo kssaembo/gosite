@@ -95,15 +95,14 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     loadData();
   }, [teacherId]);
 
-  // 수동 저장 함수
-  const handleManualSave = async () => {
+  // 공통 저장 로직
+  const performSave = async (currentSlots: Slot[], currentActiveId: string | null) => {
     if (!teacherId) return;
 
     setIsSaving(true);
     setSaveError(null);
 
-    // URL 자동 완성 로직: https:// 가 없으면 자동으로 붙여줌
-    const formattedSlots = slots.map(slot => {
+    const formattedSlots = currentSlots.map(slot => {
       let url = slot.url.trim();
       if (url && !/^https?:\/\//i.test(url)) {
         url = `https://${url}`;
@@ -111,12 +110,9 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
       return { ...slot, url };
     });
 
-    // 화면의 입력 필드에도 반영되도록 상태 업데이트
-    setSlots(formattedSlots);
-
     const updateData = {
       slots: formattedSlots,
-      active_slot_id: activeSlotId,
+      active_slot_id: currentActiveId,
       updated_at: new Date().toISOString()
     };
 
@@ -127,21 +123,20 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         .eq('teacher_id', teacherId);
 
       if (error) {
-        console.error("저장 실패 에러:", error);
         setSaveError(error.message);
       } else {
         setLastSavedAt(new Date());
-        // 토스트 표시
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
       }
     } catch (err) {
-      console.error("네트워크 에러:", err);
       setSaveError("인터넷 연결을 확인하세요.");
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handleManualSave = () => performSave(slots, activeSlotId);
 
   const addSlot = () => {
     if (slots.length >= 10) return;
@@ -150,7 +145,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
   };
 
   const removeSlot = (id: string) => {
-    setSlots(prev => prev.filter(s => s.id !== id));
+    const newSlots = slots.filter(s => s.id !== id);
+    setSlots(newSlots);
     if (activeSlotId === id) setActiveSlotId(null);
   };
 
@@ -158,8 +154,11 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     setSlots(prev => prev.map(s => s.id === id ? { ...s, [key]: value } : s));
   };
 
-  const toggleActive = (id: string) => {
-    setActiveSlotId(prev => (prev === id ? null : id));
+  const toggleActive = async (id: string) => {
+    const nextActiveId = activeSlotId === id ? null : id;
+    setActiveSlotId(nextActiveId);
+    // 보내기 버튼 클릭 시 즉시 서버에 저장하여 학생들에게 전송
+    await performSave(slots, nextActiveId);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -299,13 +298,12 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         <footer className="mt-12 py-8 border-t border-slate-200 text-center">
           <div className="mb-8 p-4 bg-red-50 rounded-2xl border border-red-100">
             <p className="text-red-600 text-[11px] font-bold leading-relaxed break-keep">
-              ※ 주의: 실시간 전송 특성상 '방송중(보내기)' 상태에서 '저장하기'를 누르면 학생 기기에 즉시 반영되며 전송된 링크는 취소가 불가합니다. 
-              잘못된 링크 전송으로 인한 책임은 사용자에게 있으므로 전송 전 주소를 반드시 확인하시기 바랍니다.
+              ※ 주의: '보내기' 버튼 클릭 시 학생 기기에 즉시 반영됩니다. 잘못된 링크 전송으로 인한 책임은 사용자에게 있으므로 주소를 반드시 확인하시기 바랍니다.
             </p>
           </div>
           <div className="flex flex-col items-center gap-2 mb-4">
             <p className="text-slate-600 text-[11px] font-medium leading-relaxed">
-              입력한 내용은 '저장하기' 버튼을 눌러야 서버에 기록되며,<br/>
+              입력한 내용은 '저장하기' 버튼을 누르거나 '보내기'를 누를 때 서버에 기록됩니다.<br/>
               네트워크가 불안정할 경우 저장이 되지 않을 수 있으니 완료 메시지를 꼭 확인하세요.
             </p>
             <a href="mailto:sinjoppo@naver.com" className="text-sky-500 text-sm font-bold flex items-center gap-1 hover:underline mt-2">
@@ -358,7 +356,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
         </div>
       </aside>
 
-      {/* 저장 완료 토스트 팝업 - index.html에 정의된 animate-toast 사용 */}
       {showToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] animate-toast">
           <div className="bg-sky-500 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold">
