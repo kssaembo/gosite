@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { ExternalLink, Download, Zap } from 'lucide-react';
+import { ExternalLink, Download, Zap, Copy, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Slot, TeacherData } from '../types';
 
@@ -10,6 +10,7 @@ const StudentPage: React.FC = () => {
   const [data, setData] = useState<TeacherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
   const lastRedirectedSlotId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +32,12 @@ const StudentPage: React.FC = () => {
     if (outcome === 'accepted') {
       setDeferredPrompt(null);
     }
+  };
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   // 공통 데이터 페칭 함수
@@ -160,14 +167,32 @@ const StudentPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="text-center space-y-6">
+          <div className="text-center space-y-6 w-full max-w-sm">
             <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mx-auto shadow-xl border border-slate-100 relative">
               <Zap size={48} className="text-slate-200 animate-pulse" />
               <div className="absolute inset-0 border-4 border-sky-100 border-t-sky-500 rounded-full animate-spin opacity-20"></div>
             </div>
             <div>
               <h2 className="text-2xl font-bold text-slate-800 mb-2">선생님의 안내를 기다려주세요</h2>
-              <p className="text-slate-400 text-sm">준비가 되면 화면이 즉시 바뀝니다.</p>
+              <p className="text-slate-400 text-sm mb-6">준비가 되면 화면이 즉시 바뀝니다.</p>
+              
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">현재 접속 주소</div>
+                <div className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  <span className="flex-1 text-[11px] font-mono text-slate-500 truncate text-left">
+                    {window.location.href}
+                  </span>
+                  <button 
+                    onClick={copyUrl}
+                    className={`p-2 rounded-lg transition-all flex items-center gap-1 text-[11px] font-bold ${
+                      copied ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    }`}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    {copied ? '복사됨' : '복사'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -257,21 +257,21 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
                 disabled={isSaving}
                 className="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-xl font-bold shadow-lg shadow-sky-100 hover:bg-sky-600 transition-all disabled:opacity-50"
               >
-                <Save size={18} /> 저장하기
+                <Save size={18} /> <span className="hidden sm:inline">저장하기</span>
               </button>
               <button 
                 onClick={addSlot}
                 disabled={slots.length >= 10}
                 className="flex items-center gap-2 px-4 py-2 bg-white text-sky-500 border border-sky-100 rounded-xl font-bold shadow-sm hover:bg-sky-50 transition-all disabled:opacity-50"
               >
-                <Plus size={18} /> 추가
+                <Plus size={18} /> <span className="hidden sm:inline">추가</span>
               </button>
             </div>
           </div>
 
           {slots.length === 0 ? (
             <div className="text-center py-20 bg-white border-2 border-dashed border-slate-200 rounded-[2rem]">
-              <p className="text-slate-400 font-medium">슬롯이 비어 있습니다. '추가'를 눌러 링크를 만드세요.</p>
+              <p className="text-slate-400 font-medium">'추가'를 눌러 링크를 만드세요.</p>
             </div>
           ) : (
             <DndContext 
