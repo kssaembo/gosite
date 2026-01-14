@@ -244,7 +244,7 @@ const StudentPage: React.FC = () => {
               
               <div className="mt-6 p-4 bg-amber-50 rounded-2xl border border-amber-100">
                 <p className="text-[10px] text-amber-700 font-bold leading-relaxed">
-                  ※ 아이폰(Safari)의 경우: 설정 > Safari > [팝업 차단] 스위치를 꺼주세요.
+                  ※ 아이폰(Safari)의 경우: 설정 {">"} Safari {">"} [팝업 차단] 스위치를 꺼주세요.
                 </p>
               </div>
             </div>
