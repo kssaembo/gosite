@@ -63,7 +63,6 @@ const StudentPage: React.FC = () => {
         .single();
       
       if (session) {
-        // 새로운 링크 감지 로직 (2번 모델: 자동 새 탭)
         if (session.active_slot_id && session.active_slot_id !== lastActiveSlotId.current) {
           const slot = session.slots.find((s: Slot) => s.id === session.active_slot_id);
           if (slot?.url) {
@@ -176,6 +175,10 @@ const StudentPage: React.FC = () => {
                 >
                   수업 페이지 이동 <ExternalLink size={20} />
                 </a>
+                
+                <p className="mt-6 text-[10px] text-slate-400 font-bold leading-relaxed">
+                  ※ 수업이 종료되면 학습을 위해 열린<br/>탭들을 모두 닫아주세요.
+                </p>
               </div>
             </div>
           </div>
@@ -215,10 +218,9 @@ const StudentPage: React.FC = () => {
         )}
       </div>
 
-      {/* Chrome 팝업 차단 해제 가이드 모달 */}
       {showGuide && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full relative animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] p-8 max-sm w-full relative animate-in zoom-in-95 duration-200">
             <button onClick={() => setShowGuide(false)} className="absolute top-6 right-6 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-all"><X size={24} /></button>
             <div className="text-center mb-6">
               <div className="w-16 h-16 bg-sky-100 text-sky-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -264,7 +266,9 @@ const StudentPage: React.FC = () => {
           <div className="w-10 h-10 bg-emerald-100 text-emerald-500 rounded-xl flex items-center justify-center"><Download size={20} /></div>
           <div className="flex-1">
             <h4 className="text-[11px] font-black text-slate-800">앱으로 설치하기</h4>
-            <p className="text-[10px] text-slate-500">홈 화면에 추가하면 팝업이 더 잘 열립니다.</p>
+            <p className="text-[10px] text-slate-500 leading-tight">
+              안정적인 사용을 위해 <b>Chrome(크롬)</b>으로 접속 후<br/>'홈 화면에 추가'하면 팝업이 더 잘 열립니다.
+            </p>
           </div>
           <button onClick={handleInstallClick} className="px-4 py-2 bg-emerald-500 text-white rounded-xl text-[10px] font-black active:scale-95 transition-all">설치</button>
         </div>
