@@ -8,6 +8,77 @@
     <meta name="theme-color" content="#0ea5e9" />
     <meta name="description" content="실시간으로 변하는 선생님의 수업 페이지" />
     
+    <!-- PWA Cache Auto-Recovery (Level 1) -->
+    <script>
+      (function() {
+        var CURRENT_VERSION = '1.0.1';
+        var storedVersion = localStorage.getItem('gosite_version');
+        
+        // 1. Version Update Trigger (Force clear when app updates)
+        if (storedVersion !== CURRENT_VERSION) {
+          localStorage.setItem('gosite_version', CURRENT_VERSION);
+          clearPwaCacheAndReload();
+          return;
+        }
+
+        // 2. Load-time Watchdog: Clear caches and reload if app doesn't mount in 3.5 seconds
+        var watchdog = setTimeout(function() {
+          var isLoaded = sessionStorage.getItem('gosite_loaded');
+          var lastWatchdogReload = localStorage.getItem('gosite_watchdog_reload') || '0';
+          var now = Date.now();
+          if (!isLoaded && (now - parseInt(lastWatchdogReload) > 20000)) {
+            localStorage.setItem('gosite_watchdog_reload', now.toString());
+            clearPwaCacheAndReload();
+          }
+        }, 3500);
+
+        window.clearGoSiteWatchdog = function() {
+          clearTimeout(watchdog);
+          sessionStorage.setItem('gosite_loaded', 'true');
+        };
+
+        function clearPwaCacheAndReload() {
+          console.warn('[GoSite PWA] Initiating full cache recovery...');
+          // Unregister Service Workers
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for (var i = 0; i < registrations.length; i++) {
+                registrations[i].unregister();
+              }
+            });
+          }
+          // Clear all Cache Storage
+          if ('caches' in window) {
+            caches.keys().then(function(keys) {
+              return Promise.all(keys.map(function(key) { return caches.delete(key); }));
+            }).then(function() {
+              window.location.reload(true);
+            }).catch(function() {
+              window.location.reload(true);
+            });
+          } else {
+            window.location.reload(true);
+          }
+        }
+
+        // 3. Fallback: Catch dynamic import load errors immediately
+        window.addEventListener('error', function(e) {
+          if (e.message && (
+            e.message.indexOf('dynamically imported module') !== -1 ||
+            e.message.indexOf('Loading chunk') !== -1 ||
+            e.message.indexOf('Failed to fetch') !== -1
+          )) {
+            var lastErrorReload = localStorage.getItem('gosite_error_reload') || '0';
+            var now = Date.now();
+            if (now - parseInt(lastErrorReload) > 10000) {
+              localStorage.setItem('gosite_error_reload', now.toString());
+              clearPwaCacheAndReload();
+            }
+          }
+        }, true);
+      })();
+    </script>
+    
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

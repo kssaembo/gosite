@@ -10,6 +10,13 @@ import { useAuth } from './hooks/useAuth';
 const App: React.FC = () => {
   const { auth, login, logout } = useAuth();
 
+  React.useEffect(() => {
+    // Clear the loading watchdog once React mounts successfully
+    if (typeof (window as any).clearGoSiteWatchdog === 'function') {
+      (window as any).clearGoSiteWatchdog();
+    }
+  }, []);
+
   return (
     <HashRouter>
       <Routes>
