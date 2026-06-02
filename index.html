@@ -11,6 +11,9 @@
     <!-- PWA Cache Auto-Recovery (Level 1) -->
     <script>
       (function() {
+        // Reset the session loaded state every time a new app session starts
+        sessionStorage.removeItem('gosite_loaded');
+
         var CURRENT_VERSION = '1.0.1';
         var storedVersion = localStorage.getItem('gosite_version');
         
@@ -35,6 +38,10 @@
         window.clearGoSiteWatchdog = function() {
           clearTimeout(watchdog);
           sessionStorage.setItem('gosite_loaded', 'true');
+        };
+
+        window.clearPwaCacheAndReload = function() {
+          clearPwaCacheAndReload();
         };
 
         function clearPwaCacheAndReload() {

@@ -13,8 +13,21 @@ const StudentPage: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isPopupBlocked, setIsPopupBlocked] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showResetButton, setShowResetButton] = useState(false);
   
   const lastActiveSlotId = useRef<string | null>(null);
+
+  useEffect(() => {
+    let timer: any;
+    if (loading) {
+      timer = setTimeout(() => {
+        setShowResetButton(true);
+      }, 4500);
+    } else {
+      setShowResetButton(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -109,10 +122,32 @@ const StudentPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-sky-100 border-t-sky-500 rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-bold">선생님 교실에 입장하는 중...</p>
+      <div className="min-h-screen flex items-center justify-center bg-white p-6">
+        <div className="flex flex-col items-center gap-6 text-center max-w-xs">
+          <div className="w-12 h-12 border-4 border-sky-100 border-t-sky-500 rounded-full animate-spin text-sky-500"></div>
+          <div className="space-y-1">
+            <p className="text-slate-600 font-black text-sm">선생님 교실에 입장하는 중...</p>
+            <p className="text-slate-400 text-xs leading-relaxed">네트워크 연결을 확인하고 실시간 업데이트를 동기화하고 있습니다.</p>
+          </div>
+          {showResetButton && (
+            <div className="pt-2 animate-in fade-in slide-in-from-bottom-2 duration-300 w-full">
+              <button
+                onClick={() => {
+                  if (typeof (window as any).clearPwaCacheAndReload === 'function') {
+                    (window as any).clearPwaCacheAndReload();
+                  } else {
+                    window.location.reload(true);
+                  }
+                }}
+                className="w-full py-3 px-4 bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white rounded-2xl font-bold text-xs shadow-lg shadow-rose-100 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                접속 오류 해결 및 다시 시도
+              </button>
+              <p className="text-[10px] text-slate-400 mt-2 font-medium leading-relaxed">
+                ※ 흰색 화면이나 로딩화면에서 계속 멈출 때 누르면, 즉시 캐시를 초기화하고 오류를 해결합니다.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
