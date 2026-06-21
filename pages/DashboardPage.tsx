@@ -242,8 +242,8 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
     <>
       <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row print:hidden">
         <div className="flex-1 p-6 lg:p-10 max-w-4xl mx-auto w-full flex flex-col">
-          <header className="flex justify-between items-start mb-10">
-            <div>
+          <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+            <div className="shrink-0">
               <h1 className="text-3xl font-extrabold text-slate-900">{username} 선생님</h1>
               <div className="text-slate-500 mt-1 flex items-center gap-3 text-sm">
                 실시간 URL 전송
@@ -251,7 +251,33 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ teacherId, username, onLo
                 {lastSavedAt && !isSaving && <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded font-bold">저장 완료</span>}
               </div>
             </div>
-            <button onClick={onLogout} className="p-2 text-slate-400 hover:text-red-500 transition-all"><LogOut size={24} /></button>
+
+            {/* 긴급 해결 안내창 (헤더 내 배치) */}
+            <div className="flex-1 max-w-xl bg-red-50 border border-red-200 rounded-2xl p-4 shadow-sm flex gap-3 items-start animate-in fade-in slide-in-from-top-4 duration-300">
+              <div className="bg-red-100 p-1.5 rounded-lg text-red-600 shrink-0">
+                <AlertCircle size={16} />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-[11px] font-black text-red-600 mb-0.5 leading-normal">학생 Gosite 연결 안 될 때 긴급 해결 방법</h4>
+                <p className="text-slate-700 text-[10px] font-bold leading-normal mb-1">학생 태블릿에서 Gosite 연결이 안 될 경우</p>
+                <ul className="space-y-0.5 text-slate-600 text-[10px] leading-snug">
+                  <li className="flex items-start gap-1 font-medium">
+                    <span className="bg-red-100 text-red-700 font-extrabold rounded-full w-3.5 h-3.5 inline-flex items-center justify-center text-[8px] shrink-0 mt-0.5">1</span>
+                    <span>wifi를 끄고 Gosite를 종료해주세요.</span>
+                  </li>
+                  <li className="flex items-start gap-1 font-medium">
+                    <span className="bg-red-100 text-red-700 font-extrabold rounded-full w-3.5 h-3.5 inline-flex items-center justify-center text-[8px] shrink-0 mt-0.5">2</span>
+                    <span>4~5초 정도 기다려주세요.</span>
+                  </li>
+                  <li className="flex items-start gap-1 font-medium">
+                    <span className="bg-red-100 text-red-700 font-extrabold rounded-full w-3.5 h-3.5 inline-flex items-center justify-center text-[8px] shrink-0 mt-0.5">3</span>
+                    <span>다시 wifi를 켜고 Gosite 앱을 실행해 주세요.</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <button onClick={onLogout} className="p-2 text-slate-400 hover:text-red-500 transition-all shrink-0"><LogOut size={24} /></button>
           </header>
 
           <div className="bg-sky-500 rounded-3xl p-6 text-white mb-8 shadow-xl relative overflow-hidden">

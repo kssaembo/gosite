@@ -16,6 +16,30 @@ const StudentPage: React.FC = () => {
   const [showResetButton, setShowResetButton] = useState(false);
   
   const lastActiveSlotId = useRef<string | null>(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [reconnectTrigger, setReconnectTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log("[GoSite] 네트워크 연결 복구됨 - 실시간 채널 복구 작동");
+      setIsOffline(false);
+      setReconnectTrigger(prev => prev + 1);
+      fetchSession();
+    };
+    
+    const handleOffline = () => {
+      console.log("[GoSite] 네트워크 연결 해제됨");
+      setIsOffline(true);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     let timer: any;
@@ -101,7 +125,7 @@ const StudentPage: React.FC = () => {
     fetchSession();
 
     const channel = supabase
-      .channel(`student_realtime_${teacherId}`)
+      .channel(`student_realtime_${teacherId}_${reconnectTrigger}`)
       .on('postgres_changes', { 
         event: '*', 
         schema: 'public', 
@@ -118,7 +142,7 @@ const StudentPage: React.FC = () => {
       supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
-  }, [teacherId]);
+  }, [teacherId, reconnectTrigger]);
 
   if (loading) {
     return (
@@ -163,10 +187,17 @@ const StudentPage: React.FC = () => {
           <span className="text-xl font-bold text-slate-800 tracking-tight">GoSite</span>
         </div>
         <div className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[11px] font-bold text-slate-500 shadow-sm flex items-center gap-1">
-          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          <span className={`w-2 h-2 rounded-full ${isOffline ? 'bg-amber-400' : 'bg-emerald-500'} animate-pulse`}></span>
           {data?.username || teacherId} 선생님
         </div>
       </div>
+
+      {isOffline && (
+        <div className="mb-6 bg-amber-500 text-white rounded-2xl py-3.5 px-5 flex items-center justify-center gap-2.5 text-xs font-bold shadow-lg shadow-amber-100 animate-in fade-in slide-in-from-top-2 duration-300">
+          <AlertTriangle size={16} className="shrink-0" />
+          <span>네트워크 연결이 끊겼습니다. 와이파이를 켜면 자동으로 복구됩니다.</span>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col items-center justify-center">
         {activeSlot ? (
